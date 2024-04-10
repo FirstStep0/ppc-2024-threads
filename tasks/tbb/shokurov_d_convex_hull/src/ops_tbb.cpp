@@ -10,7 +10,8 @@
 
 using namespace std::chrono_literals;
 
-bool ConvexHullSequential::validation() {
+namespace shokurov_d_convex_hull_tbb {
+bool ConvexHullShokurov::validation() {
   internal_order_test();
   try {
     if (taskData->inputs_count.size() != 1) throw 1;
@@ -23,7 +24,7 @@ bool ConvexHullSequential::validation() {
   }
 }
 
-bool ConvexHullSequential::pre_processing() {
+bool ConvexHullShokurov::pre_processing() {
   internal_order_test();
   try {
     // Init value for input and output
@@ -36,7 +37,7 @@ bool ConvexHullSequential::pre_processing() {
   }
 }
 
-bool ConvexHullSequential::run() {
+bool ConvexHullShokurov::run() {
   internal_order_test();
   try {
     si = solve(points);
@@ -46,7 +47,7 @@ bool ConvexHullSequential::run() {
   }
 }
 
-bool ConvexHullSequential::post_processing() {
+bool ConvexHullShokurov::post_processing() {
   internal_order_test();
   try {
     auto* outputs_ = reinterpret_cast<std::pair<double, double>*>(taskData->outputs[0]);
@@ -73,24 +74,24 @@ struct PointFinder {
       : arr(finder.arr), vec(finder.vec), pk(finder.pk), k(finder.k), index(finder.k) {}
   void operator()(const oneapi::tbb::blocked_range<int>& r) {
     for (int i = r.begin(); i < r.end(); ++i) {
-      if (!ConvexHullSequential::comp(arr[i], pk) &&
-          ConvexHullSequential::my_less(ConvexHullSequential::sub(arr[i], pk),
-                                        ConvexHullSequential::sub(arr[index], pk), vec)) {
+      if (!ConvexHullShokurov::comp(arr[i], pk) &&
+          ConvexHullShokurov::my_less(ConvexHullShokurov::sub(arr[i], pk), ConvexHullShokurov::sub(arr[index], pk),
+                                      vec)) {
         index = i;
       }
     }
   }
   void join(const PointFinder& finder) {
-    if (!ConvexHullSequential::comp(arr[finder.index], pk) &&
-        ConvexHullSequential::my_less(ConvexHullSequential::sub(arr[finder.index], pk),
-                                      ConvexHullSequential::sub(arr[index], pk), vec)) {
+    if (!ConvexHullShokurov::comp(arr[finder.index], pk) &&
+        ConvexHullShokurov::my_less(ConvexHullShokurov::sub(arr[finder.index], pk),
+                                    ConvexHullShokurov::sub(arr[index], pk), vec)) {
       index = finder.index;
     }
   }
   int result() const { return index; }
 };
 
-size_t ConvexHullSequential::solve(std::vector<std::pair<double, double>>& p) {
+size_t ConvexHullShokurov::solve(std::vector<std::pair<double, double>>& p) {
   const int n = p.size();
   std::pair<double, double> p0 = p[index_lowest_right_point(p)];
   std::pair<double, double> vec = {1.0, 0.0};
@@ -121,12 +122,12 @@ size_t ConvexHullSequential::solve(std::vector<std::pair<double, double>>& p) {
   return k;
 }
 
-bool ConvexHullSequential::comp(const std::pair<double, double>& a, const std::pair<double, double>& b) {
+bool ConvexHullShokurov::comp(const std::pair<double, double>& a, const std::pair<double, double>& b) {
   return normal(sub(a, b)) < 1e-6;
 }
 
-bool ConvexHullSequential::my_less(const std::pair<double, double>& v1, const std::pair<double, double>& v2,
-                                   const std::pair<double, double>& v) {
+bool ConvexHullShokurov::my_less(const std::pair<double, double>& v1, const std::pair<double, double>& v2,
+                                 const std::pair<double, double>& v) {
   const double cosa = cos(v1, v);
   const double cosb = cos(v2, v);
   bool flag = false;
@@ -137,12 +138,12 @@ bool ConvexHullSequential::my_less(const std::pair<double, double>& v1, const st
   return flag;
 }
 
-std::pair<double, double> ConvexHullSequential::sub(const std::pair<double, double>& v1,
-                                                    const std::pair<double, double>& v2) {
+std::pair<double, double> ConvexHullShokurov::sub(const std::pair<double, double>& v1,
+                                                  const std::pair<double, double>& v2) {
   return std::pair<double, double>(v1.first - v2.first, v1.second - v2.second);
 }
 
-size_t ConvexHullSequential::index_lowest_right_point(const std::vector<std::pair<double, double>>& v) {
+size_t ConvexHullShokurov::index_lowest_right_point(const std::vector<std::pair<double, double>>& v) {
   auto less = [](const std::pair<double, double>& a, const std::pair<double, double>& b) {
     bool flag = false;
     if (a.second != b.second)
@@ -164,16 +165,17 @@ size_t ConvexHullSequential::index_lowest_right_point(const std::vector<std::pai
   return index;
 }
 
-double ConvexHullSequential::scalar_product(const std::pair<double, double>& v1, const std::pair<double, double>& v2) {
+double ConvexHullShokurov::scalar_product(const std::pair<double, double>& v1, const std::pair<double, double>& v2) {
   return v1.first * v2.first + v1.second * v2.second;
 }
 
-double ConvexHullSequential::normal(const std::pair<double, double>& v) {
+double ConvexHullShokurov::normal(const std::pair<double, double>& v) {
   return sqrt(v.first * v.first + v.second * v.second);
 }
 
-double ConvexHullSequential::cos(const std::pair<double, double>& v1, const std::pair<double, double>& v2) {
+double ConvexHullShokurov::cos(const std::pair<double, double>& v1, const std::pair<double, double>& v2) {
   const double n1 = normal(v1);
   const double n2 = normal(v2);
   return scalar_product(v1, v2) / (n1 * n2);
 }
+};  // namespace shokurov_d_convex_hull_tbb
